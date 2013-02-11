@@ -108,20 +108,18 @@ int main(int argc, char* argv[]) {
 
 		CvSize imageSize = cvGetSize(image);
 
-		rectangle_t bestFit;
 		float bestError = 1;
 
 		//printf("numRects = %i\n", numRects);
 		int i;
 		for(i = 0; i < numRects; i++) {
 			rectangles[i] = normalizeBounds(rectangles[i], imageSize);
-			//writeFloat(dashboard, rectangles[i].x);
-			//writeFloat(dashboard, rectangles[i].y);
 			float error = ((rectangles[i].width/rectangles[i].height)-TARGET_ASPECT_RATIO)/TARGET_ASPECT_RATIO;
 			if(error < 0) error = -error;
 			if(error <= PERROR && error < bestError) {
 				targetX = rectangles[i].x+(rectangles[i].width/2);
-				targetY = rectangles[i].y+(rectangles[i].height/2);			
+				targetY = rectangles[i].y+(rectangles[i].height/2);	
+				bestError = error;		
 			}
 		}
 
