@@ -25,6 +25,7 @@
 
 #include <stdlib.h> //noah is awesome.
 #include <stdio.h>
+#include <time.h>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -41,7 +42,7 @@
 #define DEBUG
 
 #define TARGET_AREA 9001
-#define TARGET_ASPECT_RATIO 4.5
+#define TARGET_ASPECT_RATIO 54.0/21.0
 #define PERROR 1
 
 typedef struct {
@@ -76,6 +77,8 @@ int main(int argc, char* argv[]) {
 	}
 	int lostFrames = 0;
 	int receivedFrames = 0;
+	int startTime = time(0);
+	int endTime = startTime;
 	IplImage* image;
 	CvMemStorage* storage = cvCreateMemStorage(0);
 	while(1) {
@@ -84,24 +87,29 @@ int main(int argc, char* argv[]) {
 		printf("Retrieving frame...\n");
 		image = cvRetrieveFrame(capture, index);*/
 		image = cvQueryFrame(capture);
+		
 		if(!image) {
 			printf("Retrieved %i frames before losing one!\n", receivedFrames);
 			receivedFrames = 0;
 			printf("No Frame!\n");
 			lostFrames++;
 			if(lostFrames >= 3) {
+				writeFloat(dashboard, 0);
+				writeFloat(dashboard, 0);
+				writeFloat(dashboard, -1); //Tell the robot to stop, need to grab our image stream again			
 				cvReleaseCapture(&capture);
 				capture = cvCaptureFromFile(stream_url);
 				lostFrames = 0;
 			}		
 			continue;
 		}
+		endTime = time(0);
 		receivedFrames++;
 		//printf("Retrieved frame!\n");
 		//cvShowImage("image", image);
 
 		int numRects = 0;
-		rectangle_t* rectangles = track(image, TARGET_RED, &numRects);
+		rectangle_t* rectangles = track(image, TARGET_WHITE, &numRects);
 
 		float targetX = 0;
 		float targetY = 0;
@@ -122,11 +130,16 @@ int main(int argc, char* argv[]) {
 				bestError = error;		
 			}
 		}
+		int duration = endTime-startTime;
+		float timeSince = (float)duration;
 
-		//printf("(%f, %f)\n", targetX, targetY);
+		//printf("Time: %f\n", timeSince);
 		writeFloat(dashboard, targetX);
 		writeFloat(dashboard, targetY);
+		writeFloat(dashboard, timeSince);
 		free(rectangles);
+
+		startTime = time(0);
 
 		char key = cvWaitKey(1);
 		if(key == 'q') {
@@ -240,7 +253,7 @@ rectangle_t* track(IplImage* image, int target, int* numRects) {
 		cvReleaseImage(&greenImage);
 	} else if(target == TARGET_RED) {
 		IplImage* redImage = splitChannel(image, CHANNEL_RED);
-		cvThreshold(redImage, threshold, 75, 255, CV_THRESH_OTSU);
+		cvThreshold(redImage, threshold, 0, 255, CV_THRESH_OTSU);
 
 		cvReleaseImage(&redImage);
 	} else if(target == TARGET_WHITE) {
