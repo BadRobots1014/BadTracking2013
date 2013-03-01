@@ -1,29 +1,4 @@
-/*
-	This code utilizes libfreenect in order to grab images from the Kinect and uses
-	OpenCV to handle image processing. This code uses the synchronous freenect API
-	which may occasionally lead to some lag. Likely this will be changed to instead
-	use the asynchronous API if it becomes a problem. This code was pulled together
-	in a matter of two days so don't expect it to be the most beautiful thing you've
-	ever laid eyes on. 
-	
-	* Every call to cvShowImage has lead to a memory leak, so every time you test this
-	expect a limited amount of time before you run out of RAM (my computer around 30-45 seconds).
-	The good news here is if you remove these calls you shouldn't have any worries about running
-	out of memory (should run fine on a Pi)
-
-	* For whatever reason the green colour channel doesn't seem to pick up as well as the
-	other two.
-
-	* For all who venture further, may the source be with you!
-
-	DEPENDENCIES: Libfreenect, OpenCV
-	AUTHORS: Team 1014 ( http://dublinrobotics.blogspot.com/ )
-	SEE: http://openkinect.org/wiki/Getting_Started
-		 http://opencv.willowgarage.com/documentation/c/index.html
-		 https://github.com/BadRobots1014
-*/
-
-#include <stdlib.h> //noah is awesome.
+#include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -36,14 +11,12 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
-//#include <libfreenect_sync.h>
-
 #define MIN_AREA 100
 #define DEBUG
 
 #define TARGET_AREA 9001
 #define TARGET_ASPECT_RATIO 54.0/21.0
-#define PERROR 1
+#define PERROR .45
 
 typedef struct {
 	float x;
@@ -65,7 +38,8 @@ void writeFloat(int fd, float f);
 float reverseFloat(float f);
 
 int main(int argc, char* argv[]) {
-	char* stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
+	//char* stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
+	char* stream_url = "10.10.14.42/mjpg/video.mjpg";	
 	int dashboard = openConnection("10.10.14.42", "2000");
 	printf("%i\n", dashboard);
 
@@ -253,7 +227,7 @@ rectangle_t* track(IplImage* image, int target, int* numRects) {
 		cvReleaseImage(&greenImage);
 	} else if(target == TARGET_RED) {
 		IplImage* redImage = splitChannel(image, CHANNEL_RED);
-		cvThreshold(redImage, threshold, 0, 255, CV_THRESH_OTSU);
+		cvThreshold(redImage, threshold, 75, 255, CV_THRESH_OTSU);
 
 		cvReleaseImage(&redImage);
 	} else if(target == TARGET_WHITE) {
