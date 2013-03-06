@@ -1,1 +1,1 @@
-gcc main.c `pkg-config --cflags --libs opencv` -lfreenect -lfreenect_sync
+gcc *.h *.c `pkg-config --cflags --libs opencv` -o imgproc
