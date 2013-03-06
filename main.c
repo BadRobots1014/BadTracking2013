@@ -2,14 +2,11 @@
 #include <stdio.h>
 #include <time.h>
 
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/in.h>
-
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+
+#include "network.h"
+#include "rectangle.h"
 
 #define MIN_AREA 100
 #define DEBUG
@@ -18,30 +15,20 @@
 #define TARGET_ASPECT_RATIO 54.0/21.0
 #define PERROR .45
 
-typedef struct {
-	float x;
-	float y;
-	float width;
-	float height;
-} rectangle_t;
-
 enum color_channels { CHANNEL_BLUE, CHANNEL_GREEN, CHANNEL_RED };
 enum track_target { TARGET_RED, TARGET_GREEN, TARGET_BLUE, TARGET_WHITE, TARGET_BLACK };
 
 IplImage* splitChannel(IplImage* input, int channel);
 rectangle_t* track(IplImage* image, int target, int* numRects);
-rectangle_t approximateBounds(CvSeq* points);
-rectangle_t normalizeBounds(rectangle_t bounds, CvSize size);
-
-int openConnection(char* hostname, char* port_str);
-void writeFloat(int fd, float f);
-float reverseFloat(float f);
 
 int main(int argc, char* argv[]) {
-	//char* stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
-	char* stream_url = "10.10.14.42/mjpg/video.mjpg";	
-	int dashboard = openConnection("10.10.14.42", "2000");
-	printf("%i\n", dashboard);
+	char* stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
+	printf("Connecting to dashboard...\n");
+	int dashboard = socket_open("10.10.14.42", "2000");
+	if(dashboard < 0) {
+		return -1;
+	}
+	printf("Connected!\n");
 
 	avformat_network_init();
 	CvCapture* capture = cvCaptureFromFile(stream_url);
@@ -56,10 +43,6 @@ int main(int argc, char* argv[]) {
 	IplImage* image;
 	CvMemStorage* storage = cvCreateMemStorage(0);
 	while(1) {
-		/*printf("Grabbing frame..\n");
-		int index = cvGrabFrame(capture);
-		printf("Retrieving frame...\n");
-		image = cvRetrieveFrame(capture, index);*/
 		image = cvQueryFrame(capture);
 		
 		if(!image) {
@@ -68,34 +51,34 @@ int main(int argc, char* argv[]) {
 			printf("No Frame!\n");
 			lostFrames++;
 			if(lostFrames >= 3) {
-				writeFloat(dashboard, 0);
-				writeFloat(dashboard, 0);
-				writeFloat(dashboard, -1); //Tell the robot to stop, need to grab our image stream again			
+				socket_write_float(dashboard, 0);
+				socket_write_float(dashboard, 0);
+				socket_write_float(dashboard, -1); //Tell the robot to stop, need to grab our image stream again			
 				cvReleaseCapture(&capture);
 				capture = cvCaptureFromFile(stream_url);
 				lostFrames = 0;
+				endTime = time(0);
+				printf("Waited %i seconds for new frame\n", (endTime-startTime));
 			}		
 			continue;
+		} else {
+			startTime = time(0);
 		}
-		endTime = time(0);
 		receivedFrames++;
-		//printf("Retrieved frame!\n");
-		//cvShowImage("image", image);
 
 		int numRects = 0;
-		rectangle_t* rectangles = track(image, TARGET_WHITE, &numRects);
+		rectangle_t* rectangles = track(image, TARGET_RED, &numRects);
 
 		float targetX = 0;
 		float targetY = 0;
 
 		CvSize imageSize = cvGetSize(image);
 
-		float bestError = 1;
+		float bestError = -1;
 
-		//printf("numRects = %i\n", numRects);
 		int i;
 		for(i = 0; i < numRects; i++) {
-			rectangles[i] = normalizeBounds(rectangles[i], imageSize);
+			rectangles[i] = normalize_bounds(rectangles[i], imageSize);
 			float error = ((rectangles[i].width/rectangles[i].height)-TARGET_ASPECT_RATIO)/TARGET_ASPECT_RATIO;
 			if(error < 0) error = -error;
 			if(error <= PERROR && error < bestError) {
@@ -104,25 +87,30 @@ int main(int argc, char* argv[]) {
 				bestError = error;		
 			}
 		}
+		endTime = time(0);
 		int duration = endTime-startTime;
-		float timeSince = (float)duration;
+		float timeSince = (float)duration; //Time since last valid frame (seconds)
 
-		//printf("Time: %f\n", timeSince);
-		writeFloat(dashboard, targetX);
-		writeFloat(dashboard, targetY);
-		writeFloat(dashboard, timeSince);
+		socket_write_float(dashboard, targetX);
+		socket_write_float(dashboard, targetY);
+		if(bestError = -1) {
+			/*
+				Unable to find a target, make sure the robot knows this information
+				isn't valid
+			*/
+			socket_write_float(dashboard, -1);
+		} else {
+			socket_write_float(dashboard, timeSince);
+		}		
 		free(rectangles);
-
-		startTime = time(0);
 
 		char key = cvWaitKey(1);
 		if(key == 'q') {
 			break;
 		}
-		//cvReleaseImage(&image);
 		cvClearMemStorage(storage);
 	}
-	close(dashboard);
+	socket_release(dashboard);
 	cvReleaseMemStorage(&storage);
 	cvReleaseCapture(&capture);	
 	return 0;
@@ -152,66 +140,9 @@ IplImage* splitChannel(IplImage* input, int channel) {
 	return result;
 }
 
-rectangle_t approximateBounds(CvSeq* points) {
-	rectangle_t bounds;
-	float smallestX;
-	float smallestY;
-	float largestX;
-	float largestY;
-
-	if(points->total <= 1) {
-		bounds.x = -1;
-		bounds.y = -1;
-		bounds.width = -1;
-		bounds.height = -1;
-		return bounds;
-	}
-
-	CvPoint* first = (CvPoint*)cvGetSeqElem(points, 0);
-	smallestX = first->x;
-	smallestY = first->y;
-	largestX = first->x;
-	largestY = first->y;
-
-	int i;
-	for(i = 1; i < points->total; i++) {
-		CvPoint* point = (CvPoint*)cvGetSeqElem(points, i);
-		
-		int x = point->x;
-		int y = point->y;
-		if(x < smallestX) {
-			smallestX = x;
-		} else if(x > largestX) {
-			largestX = x;
-		}
-		if(y < smallestY) {
-			smallestY = y;
-		} else if(y > largestY) {
-			largestY = y;
-		}
-		first = point;
-	}
-
-	bounds.width = largestX-smallestX;
-	bounds.height = largestY-smallestY;
-	bounds.x = smallestX;
-	bounds.y = smallestY;
-	return bounds;
-}
-
-rectangle_t normalizeBounds(rectangle_t bounds, CvSize size) {
-	rectangle_t result;
-	result.x = (bounds.x-(size.width/2))/size.width;
-	result.y = (bounds.y-(size.height/2))/size.height;
-	result.width = (bounds.width/size.width);
-	result.height = (bounds.height/size.height);
-	return result;
-}
-
 rectangle_t* track(IplImage* image, int target, int* numRects) {
 	CvMemStorage* storage = cvCreateMemStorage(0);
 
-	//cvDilate(image, image, NULL, 2);
 	IplImage* threshold = cvCreateImage(cvGetSize(image), 8, 1);
 
 	CvSeq* contours;
@@ -233,7 +164,7 @@ rectangle_t* track(IplImage* image, int target, int* numRects) {
 	} else if(target == TARGET_WHITE) {
 		IplImage* grayScale = cvCreateImage(cvGetSize(image), 8, 1);
 		cvCvtColor(image, grayScale, CV_RGB2GRAY);
-		cvThreshold(grayScale, threshold, 200, 255, CV_THRESH_BINARY);
+		cvThreshold(grayScale, threshold, 175, 255, CV_THRESH_BINARY);
 
 		cvReleaseImage(&grayScale);
 	} else if(target == TARGET_BLACK) {
@@ -274,8 +205,7 @@ rectangle_t* track(IplImage* image, int target, int* numRects) {
 				1000, CV_FILLED, CV_AA, cvPoint(0,0));			
 #endif
 			//Guess a bounding rectangle and make pretty pictures with it
-			rectangle_t bounds = approximateBounds(hull_points);
-			//printf("Saving rect %i of %i\n", pos, numContours);
+			rectangle_t bounds = approximate_bounds(hull_points);
 			boundaries[pos] = bounds;
 			pos++;			
 			if(bounds.width*bounds.height > MIN_AREA) {
@@ -295,51 +225,4 @@ rectangle_t* track(IplImage* image, int target, int* numRects) {
 	cvReleaseImage(&threshold);
 	cvReleaseMemStorage(&storage);
 	return boundaries;
-}
-
-int openConnection(char* hostname, char* port_str) {
-	struct addrinfo* info;
-	struct addrinfo hints;
-	
-	int port = atoi(port_str);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_protocol = 0;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = 0;;
-
-	int r = getaddrinfo(hostname, port_str, &hints, &info);
-	if(r != 0) {
-		printf("Unable to get host...\n");
-		printf("%s\n", gai_strerror(r));
-		return -1;
-	}
-	
-	int fd = socket(info->ai_family, info->ai_socktype,
-						info->ai_protocol);
-	printf("Connecting...\n");
-	if(connect(fd, info->ai_addr, info->ai_addrlen) == -1) {
-		printf("Unable to connect, fd = %i\n", fd);
-		return -1;
-	}
-	printf("Connected!");
-
-	freeaddrinfo(info);
-
-	return fd;
-}
-void writeFloat(int fd, float f) {
-	f = reverseFloat(f);
-	write(fd, &f, sizeof(f));
-}
-float reverseFloat(float f) {
-	float ret;
-	char* buffer = (char*)&f;
-	char* resultBuffer = (char*)&ret;
-
-	resultBuffer[0] = buffer[3];
-	resultBuffer[1] = buffer[2];
-	resultBuffer[2] = buffer[1];
-	resultBuffer[3] = buffer[0];
-
-	return ret;
 }

@@ -1,0 +1,13 @@
+This program is designed to stream images from a camera, and detect
+rectangles of a specified colour and aspect ratio sending the one
+it finds to best fit the criteria given to a SmartDashboard plugin.
+The SmartDashboard plugin serves only to relay the message to the
+robot. Processing is handled by OpenCV, the code is written for
+Unix systems but can, with very little effort, be ported to Windows.
+The code was mostly hacked together with no prior knowledge of OpenCV,
+so it's not the cleanest thing you're ever going to read.
+
+Installing on Debian-based systems:
+(all in one line)
+sudo apt-get install build-essential libavformat-dev ffmpeg libcv2.3 libcvaux2.3 libhighgui2.3 libcv-dev libcvaux-dev
+	libhighgui-dev opencv-doc
