@@ -208,7 +208,7 @@ rectangle_t* track(IplImage* image, int target, int* numRects) {
 			rectangle_t bounds = approximate_bounds(hull_points);
 			boundaries[pos] = bounds;
 			pos++;			
-			if(bounds.width*bounds.height > MIN_AREA) {
+			if(bounds.width*bounds.height >= MIN_AREA) {
 #ifdef DEBUG
 				cvRectangle(image, cvPoint(bounds.x, bounds.y),
 					cvPoint(bounds.x+bounds.width, bounds.y+bounds.height),

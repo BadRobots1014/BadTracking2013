@@ -17,9 +17,9 @@ rectangle_t approximate_bounds(CvSeq* points) {
 	float largestY;
 
 	if(points->total <= 1) {
-		bounds.x      = -1;
-		bounds.y      = -1;
-		bounds.width  = -1;
+		bounds.x = -1;
+		bounds.y = -1;
+		bounds.width = -1;
 		bounds.height = -1;
 		return bounds;
 	}
@@ -27,30 +27,33 @@ rectangle_t approximate_bounds(CvSeq* points) {
 	CvPoint* first = (CvPoint*)cvGetSeqElem(points, 0);
 	smallestX = first->x;
 	smallestY = first->y;
-	largestX  = first->x;
-	largestY  = first->y;
+	largestX = first->x;
+	largestY = first->y;
 
 	int i;
 	for(i = 1; i < points->total; i++) {
 		CvPoint* point = (CvPoint*)cvGetSeqElem(points, i);
-
-		if(point->x < smallestX) {
-			smallestX = point->x;
-		} else if(point->x > largestX) {
-			largestX  = point->x;
+		
+		int x = point->x;
+		int y = point->y;
+		if(x < smallestX) {
+			smallestX = x;
+		} else if(x > largestX) {
+			largestX = x;
 		}
-
-		if(point->y < smallestY) {
-			smallestY = point->y;
-		} else if(point->y > largestY) {
-			largestY  = point->y;
+		if(y < smallestY) {
+			smallestY = y;
+		} else if(y > largestY) {
+			largestY = y;
 		}
+		first = point;
 	}
 
-	bounds.x = smallestX;
-	bounds.y = smallestY;
 	bounds.width = largestX-smallestX;
 	bounds.height = largestY-smallestY;
+	bounds.x = smallestX;
+	bounds.y = smallestY;
+	return bounds;
 }
 
 rectangle_t normalize_bounds(rectangle_t bounds, CvSize size) {
