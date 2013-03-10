@@ -1,1 +1,1 @@
-gcc *.h *.c `pkg-config --cflags --libs opencv` -o imgproc
+gcc -Isrc/include/ src/*.c `pkg-config --cflags --libs opencv` -o imgproc
