@@ -7,7 +7,5 @@ Unix systems but can, with very little effort, be ported to Windows.
 The code was mostly hacked together with no prior knowledge of OpenCV,
 so it's not the cleanest thing you're ever going to read.
 
-Installing on Debian-based systems:
-(all in one line)
-sudo apt-get install build-essential libavformat-dev ffmpeg libcv2.3 libcvaux2.3 libhighgui2.3 libcv-dev libcvaux-dev
-	libhighgui-dev opencv-doc
+Installing dependencies on Debian-based systems
+./install-dependencies.sh
