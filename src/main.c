@@ -21,13 +21,23 @@
 enum color_channels { CHANNEL_RED, CHANNEL_GREEN, CHANNEL_BLUE };
 enum track_target   { TARGET_RED, TARGET_GREEN, TARGET_BLUE, TARGET_WHITE, TARGET_BLACK };
 
-IplImage*    splitChannel(IplImage* input, int channel);
+IplImage*    split_channel(IplImage* input, int channel);
 rectangle_t* track(IplImage* image, int target, int* num_rects);
 
 int main(int argc, char* argv[]) {
-	char* stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
+	char* stream_url;
+	int dashboard;
+	CvMemStorage* storage;
+	CvCapture* capture;
+	IplImage* captured_frame;
+	int lost_frames;
+	int received_frames;
+	int start_time;
+	int end_time;
+
+	stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
 	printf("Connecting to dashboard...\n");
-	int dashboard = socket_open("10.10.14.42", "2000");
+	dashboard = socket_open("10.10.14.42", "2000");
 	if(dashboard < 0) {
 		printf("Unable to connect to dashboard\n");
 		return -1;
@@ -35,31 +45,37 @@ int main(int argc, char* argv[]) {
 	printf("Connected!\n");
 
 	avformat_network_init();
-	CvCapture* capture = cvCaptureFromFile(stream_url);
+	capture = cvCaptureFromFile(stream_url);
 	if(!capture) {
 		printf("Unable to capture from URL\n");
 		return -1;
 	}
-	IplImage* image;
-	int lost_frames       = 0;
-	int received_frames   = 0;
-	int start_time        = time(0);
-	int end_time          = start_time;
-	CvMemStorage* storage = cvCreateMemStorage(0);
+	lost_frames       = 0;
+	received_frames   = 0;
+	start_time        = time(0);
+	end_time          = start_time;
+	storage           = cvCreateMemStorage(0);
 	//yeah... while(true).. sue me...
 	while(1) {
-		image = cvQueryFrame(capture);
-		CvSize image_size = cvGetSize(image);		
+		int num_rects;
+		float target_x;
+		float target_y;
+		float best_error;
+		CvSize image_size;
+		rectangle_t* rectangles;		
+
+		captured_frame = cvQueryFrame(capture);
+		image_size = cvGetSize(captured_frame);
 
 		//Lost a frame
-		if(!image) {
+		if(!captured_frame) {
 			printf("Retrieved %i frames before losing one!\n", received_frames);
 			received_frames = 0;
 			lost_frames++;
 			if(lost_frames >= 3) {
 				//Tell the robot to stop, need to grab our image stream again
-				socket_write_float(dashboard, 0);
-				socket_write_float(dashboard, 0);
+				socket_write_float(dashboard,  0);
+				socket_write_float(dashboard,  0);
 				socket_write_float(dashboard, -1);
 
 				//Re-acquire the image stream			
@@ -75,11 +91,11 @@ int main(int argc, char* argv[]) {
 		start_time = time(0);
 		received_frames++;
 
-		int num_rects    =  0;
-		float target_x   =  0;
-		float target_y   =  0;
-		float best_error = -1;
-		rectangle_t* rectangles = track(image, TARGET_RED, &num_rects);
+		num_rects  =  0;
+		target_x   =  0;
+		target_y   =  0;
+		best_error = -1;
+		rectangles = track(captured_frame, TARGET_RED, &num_rects);
 
 		int i;
 		for(i = 0; i < num_rects; i++) {
@@ -102,8 +118,8 @@ int main(int argc, char* argv[]) {
 		if(best_error == -1) {
 			//Unable to find a target, make sure the robot knows this information
 			//isn't valid
-			socket_write_float(dashboard, 0);
-			socket_write_float(dashboard, 0);
+			socket_write_float(dashboard,  0);
+			socket_write_float(dashboard,  0);
 			socket_write_float(dashboard, -1);
 		} else {
 			socket_write_float(dashboard, target_x);
@@ -124,12 +140,12 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-IplImage* splitChannel(IplImage* input, int channel) {
+IplImage* split_channel(IplImage* input, int channel) {
 	IplImage* result = cvCreateImage(cvGetSize(input), 8, 1);
 	
-	IplImage* red_channel = cvCreateImage(cvGetSize(input), 8, 1);
+	IplImage* red_channel   = cvCreateImage(cvGetSize(input), 8, 1);
 	IplImage* green_channel = cvCreateImage(cvGetSize(input), 8, 1);
-	IplImage* blue_channel = cvCreateImage(cvGetSize(input), 8, 1);
+	IplImage* blue_channel  = cvCreateImage(cvGetSize(input), 8, 1);
 	cvSplit(input, blue_channel, green_channel, red_channel, NULL);	
 	if(channel == CHANNEL_BLUE) {
 		cvAdd(red_channel, green_channel, green_channel, NULL);
@@ -159,17 +175,17 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 
 	CvSeq* contours;
 	if(target == TARGET_BLUE) {
-		IplImage* blue_image = splitChannel(image, CHANNEL_BLUE);
+		IplImage* blue_image = split_channel(image, CHANNEL_BLUE);
 		cvThreshold(blue_image, threshold, 75, 255, CV_THRESH_OTSU);
 
 		cvReleaseImage(&blue_image);
 	} else if(target == TARGET_GREEN) {
-		IplImage* green_image = splitChannel(image, CHANNEL_GREEN);
+		IplImage* green_image = split_channel(image, CHANNEL_GREEN);
 		cvThreshold(green_image, threshold, 75, 255, CV_THRESH_OTSU);
 
 		cvReleaseImage(&green_image);
 	} else if(target == TARGET_RED) {
-		IplImage* red_image = splitChannel(image, CHANNEL_RED);
+		IplImage* red_image = split_channel(image, CHANNEL_RED);
 		cvThreshold(red_image, threshold, 75, 255, CV_THRESH_OTSU);
 
 		cvReleaseImage(&red_image);

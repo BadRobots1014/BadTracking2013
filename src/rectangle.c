@@ -13,8 +13,8 @@ rectangle_t approximate_bounds(CvSeq* points) {
 	rectangle_t bounds;
 	float smallest_x;
 	float smallest_y;
-	float largest_x;
-	float largest_y;
+	float  largest_x;
+	float  largest_y;
 
 	if(points->total <= 1) {
 		bounds.x      = -1;

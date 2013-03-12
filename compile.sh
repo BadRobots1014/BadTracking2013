@@ -1,1 +1,1 @@
-gcc -Wall -Isrc/include/ src/*.c `pkg-config --cflags --libs opencv` -o imgproc
+gcc -Wall -Isrc/include/ src/*.c `pkg-config --cflags --libs opencv` -O2 -o imgproc
