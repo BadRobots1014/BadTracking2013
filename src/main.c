@@ -25,11 +25,11 @@ IplImage*    split_channel(IplImage* input, int channel);
 rectangle_t* track(IplImage* image, int target, int* num_rects);
 
 int main(int argc, char* argv[]) {
+	IplImage* captured_frame;
+	CvCapture* capture;
+	CvMemStorage* storage;
 	char* stream_url;
 	int dashboard;
-	CvMemStorage* storage;
-	CvCapture* capture;
-	IplImage* captured_frame;
 	int lost_frames;
 	int received_frames;
 	int start_time;
@@ -57,12 +57,12 @@ int main(int argc, char* argv[]) {
 	storage           = cvCreateMemStorage(0);
 	//yeah... while(true).. sue me...
 	while(1) {
+		CvSize image_size;
+		rectangle_t* rectangles;
 		int num_rects;
 		float target_x;
 		float target_y;
 		float best_error;
-		CvSize image_size;
-		rectangle_t* rectangles;		
 
 		captured_frame = cvQueryFrame(capture);
 		image_size = cvGetSize(captured_frame);
@@ -78,14 +78,14 @@ int main(int argc, char* argv[]) {
 				socket_write_float(dashboard,  0);
 				socket_write_float(dashboard, -1);
 
-				//Re-acquire the image stream			
+				//Re-acquire the image stream
 				cvReleaseCapture(&capture);
 				capture = cvCaptureFromFile(stream_url);
-		
+
 				lost_frames = 0;
 				end_time    = time(0);
 				printf("Waited %i seconds for new frame\n", (end_time-start_time));
-			}		
+			}
 			continue;
 		}
 		start_time = time(0);

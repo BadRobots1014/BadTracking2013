@@ -48,5 +48,5 @@ void socket_write_float(int socket, float f) {
 	result_buffer[2] = buffer[1];
 	result_buffer[3] = buffer[0];
 
-	write(socket, &f, sizeof(f));
+	write(socket, &result, sizeof(f));
 }
