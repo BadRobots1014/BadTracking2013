@@ -1,3 +1,4 @@
+#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -5,7 +6,6 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
-#include "config.h"
 #include "network.h"
 #include "rectangle.h"
 

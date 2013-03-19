@@ -1,10 +1,11 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifndef WINDOWS
+#ifdef UNIX
 
 typedef struct {} SOCKET;
 

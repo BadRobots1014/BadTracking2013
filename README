@@ -9,3 +9,9 @@ so it's not the cleanest thing you're ever going to read.
 
 Installing dependencies on Debian-based systems
 ./install-dependencies.sh
+
+Getting set up on Windows:
+stackoverflow.com/questions/10860352/getting-started-with-opencv-2-4-and-mingw-on-windows-7
+warning: the code will compile but will crash before it makes it
+into the main function, it crashes when opencv_highgui243.dll is
+loaded (the dll causes a segfault)

@@ -12,8 +12,8 @@ void socket_release(socket_t* socket) {
 
 //Will only allow you to pass IP addresses, not hostnames
 socket_t* socket_open(char* hostname, char* port_str) {
-	SOCKET socket = socket(AF_INET, SOCK_STREAM, 0);
-	if(socket == INVALID_SOCKET) {
+	SOCKET net_socket = socket(AF_INET, SOCK_STREAM, 0);
+	if(net_socket == INVALID_SOCKET) {
 		return NULL;
 	}
 
@@ -23,7 +23,7 @@ socket_t* socket_open(char* hostname, char* port_str) {
 	sock_info.sin_family = AF_INET;
 	sock_info.sin_addr.s_addr = inet_addr(hostname);
 	sock_info.sin_port = htons(port);
-	int r = connect(socket, (SOCKADDR*)&sock_info, sizeof(sock_info);
+	int r = connect(net_socket, (SOCKADDR*)&sock_info, sizeof(sock_info));
 	if(r == SOCKET_ERROR) {
 		return NULL;
 	}
@@ -49,7 +49,7 @@ void socket_write_float(socket_t* socket, float f) {
 	result_buffer[2] = buffer[1];
 	result_buffer[3] = buffer[0];
 
-	socket_write(socket, &result, sizeof(result));
+	socket_write(socket, (char*)&result, sizeof(result));
 }
 
 #endif
