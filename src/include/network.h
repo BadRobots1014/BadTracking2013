@@ -7,6 +7,7 @@
 #ifndef WINDOWS
 
 typedef struct {} SOCKET;
+
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/types.h>
@@ -16,6 +17,7 @@ typedef struct {} SOCKET;
 #else
 
 #include <windows.h>
+#include <winsock2.h>
 
 #endif
 

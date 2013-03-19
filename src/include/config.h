@@ -1,0 +1,2 @@
+#define UNIX
+//#define WINDOWS

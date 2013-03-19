@@ -38,8 +38,8 @@ rectangle_t approximate_bounds(CvSeq* points) {
 		int y = point->y;
 		if(x < smallest_x) {
 			smallest_x = x;
-		} else if(x > largest_y) {
-			largest_y  = x;
+		} else if(x > largest_x) {
+			largest_x  = x;
 		}
 		if(y < smallest_y) {
 			smallest_y = y;
@@ -49,10 +49,10 @@ rectangle_t approximate_bounds(CvSeq* points) {
 		first = point;
 	}
 
-	bounds.width  = largest_x-smallest_y;
-	bounds.height = largest_x-smallest_y;
+	bounds.width  = largest_x-smallest_x;
+	bounds.height = largest_y-smallest_y;
 	bounds.x      = smallest_x;
-	bounds.y      = smallest_x;
+	bounds.y      = smallest_y;
 	return bounds;
 }
 

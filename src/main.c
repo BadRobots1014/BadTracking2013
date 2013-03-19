@@ -17,7 +17,7 @@
 #define DEBUG
 
 #define TARGET_ASPECT_RATIO 54.0/21.0
-#define PERROR .25
+#define PERROR .10
 
 enum color_channels { CHANNEL_RED, CHANNEL_GREEN, CHANNEL_BLUE };
 enum track_target   { TARGET_RED, TARGET_GREEN, TARGET_BLUE, TARGET_WHITE, TARGET_BLACK };
@@ -38,6 +38,8 @@ int main(int argc, char* argv[]) {
 
 	stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
 	printf("Connecting to dashboard...\n");
+	//dashboard = -1;
+	//10.10.14.42
 	dashboard = socket_open("10.10.14.42", "2000");
 	if(dashboard == NULL) {
 		printf("Unable to connect to dashboard\n");
@@ -66,7 +68,6 @@ int main(int argc, char* argv[]) {
 		float best_error;
 
 		captured_frame = cvQueryFrame(capture);
-		image_size = cvGetSize(captured_frame);
 
 		//Lost a frame
 		if(!captured_frame) {
@@ -89,18 +90,22 @@ int main(int argc, char* argv[]) {
 			}
 			continue;
 		}
+		image_size = cvGetSize(captured_frame);
 		start_time = time(0);
 		received_frames++;
 
-		num_rects  =  0;
-		target_x   =  0;
-		target_y   =  0;
-		best_error = -1;
+		num_rects  =   0;
+		target_x   =   0;
+		target_y   =   0;
+		best_error = 100;
 		rectangles = track(captured_frame, TARGET_RED, &num_rects);
 
 		int i;
 		for(i = 0; i < num_rects; i++) {
+			if(rectangles[i].width*rectangles[i].height < MIN_AREA)
+				continue;
 			rectangles[i] = normalize_bounds(rectangles[i], image_size);
+			//printf("Bounds [%f, %f, %f, %f]\n", rectangles[i].x, rectangles[i].y, rectangles[i].width, rectangles[i].height);
 			float error = ((rectangles[i].width/rectangles[i].height)-TARGET_ASPECT_RATIO)/TARGET_ASPECT_RATIO;
 			if(error < 0) error = -error;
 			if(error <= PERROR && error < best_error) {
@@ -116,17 +121,19 @@ int main(int argc, char* argv[]) {
 
 		//send target information to the dashboard, and time values so the dashboard knows
 		//when to ignore us
-		if(best_error == -1) {
+		if(best_error == 100) {
 			//Unable to find a target, make sure the robot knows this information
 			//isn't valid
 			socket_write_float(dashboard,  0);
 			socket_write_float(dashboard,  0);
 			socket_write_float(dashboard, -1);
+			time_since_valid = -1;
 		} else {
 			socket_write_float(dashboard, target_x);
 			socket_write_float(dashboard, target_y);
 			socket_write_float(dashboard, time_since_valid);
-		}		
+		}	
+		printf("Target: (%f, %f), valid_since: %f\n", target_x, target_y, time_since_valid);	
 		free(rectangles);
 
 		char key = cvWaitKey(1);
@@ -187,7 +194,7 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 		cvReleaseImage(&green_image);
 	} else if(target == TARGET_RED) {
 		IplImage* red_image = split_channel(image, CHANNEL_RED);
-		cvThreshold(red_image, threshold, 75, 255, CV_THRESH_OTSU);
+		cvThreshold(red_image, threshold, 150, 255, CV_THRESH_OTSU);
 
 		cvReleaseImage(&red_image);
 	} else if(target == TARGET_WHITE) {
@@ -235,6 +242,7 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 #endif
 			//Guess a bounding rectangle and make pretty pictures with it
 			rectangle_t bounds = approximate_bounds(hull_points);
+			//printf("Bounds [%f, %f, %f, %f]\n", bounds.x, bounds.y, bounds.width, bounds.height);
 			boundaries[pos] = bounds;
 			pos++;			
 			if(bounds.width*bounds.height >= MIN_AREA) {

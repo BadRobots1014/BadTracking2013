@@ -1,0 +1,55 @@
+#include "config.h"
+
+#ifdef WINDOWS
+
+#include "network.h"
+
+void socket_release(socket_t* socket) {
+	SOCKET int_sock = socket->internal.int_socket;
+	closesocket(int_sock);
+	free(socket);
+}
+
+//Will only allow you to pass IP addresses, not hostnames
+socket_t* socket_open(char* hostname, char* port_str) {
+	SOCKET socket = socket(AF_INET, SOCK_STREAM, 0);
+	if(socket == INVALID_SOCKET) {
+		return NULL;
+	}
+
+	int port = atoi(port_str);
+
+	sockaddr_in sock_info;
+	sock_info.sin_family = AF_INET;
+	sock_info.sin_addr.s_addr = inet_addr(hostname);
+	sock_info.sin_port = htons(port);
+	int r = connect(socket, (SOCKADDR*)&sock_info, sizeof(sock_info);
+	if(r == SOCKET_ERROR) {
+		return NULL;
+	}
+
+	socket_t* result = (socket_t*)malloc(sizeof(socket_t));
+	result->internal.int_socket = socket;
+	return result;
+}
+
+void socket_write(socket_t* socket, char* buffer, int length) {
+	SOCKET int_socket = socket->internal.int_socket;
+	send(int_socket, buffer, length, 0);
+}
+void socket_write_float(socket_t* socket, float f) {
+	//convert to Big-Endian (DataInputStream in java expects it)
+	//<insert stupid assumption here>
+	float result;
+	char* buffer = (char*)&f;
+	char* result_buffer = (char*)&result;
+
+	result_buffer[0] = buffer[3];
+	result_buffer[1] = buffer[2];
+	result_buffer[2] = buffer[1];
+	result_buffer[3] = buffer[0];
+
+	socket_write(socket, &result, sizeof(result));
+}
+
+#endif
