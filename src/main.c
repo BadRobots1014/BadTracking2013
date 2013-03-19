@@ -5,6 +5,7 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
+#include "config.h"
 #include "network.h"
 #include "rectangle.h"
 
@@ -29,7 +30,7 @@ int main(int argc, char* argv[]) {
 	CvCapture* capture;
 	CvMemStorage* storage;
 	char* stream_url;
-	int dashboard;
+	socket_t* dashboard;
 	int lost_frames;
 	int received_frames;
 	int start_time;
@@ -38,7 +39,7 @@ int main(int argc, char* argv[]) {
 	stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
 	printf("Connecting to dashboard...\n");
 	dashboard = socket_open("10.10.14.42", "2000");
-	if(dashboard < 0) {
+	if(dashboard == NULL) {
 		printf("Unable to connect to dashboard\n");
 		return -1;
 	}
