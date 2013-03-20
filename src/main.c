@@ -35,6 +35,8 @@ int main(int argc, char* argv[]) {
 	int received_frames;
 	int start_time;
 	int end_time;
+	float prev_target_x = 0;
+	float prev_target_y = 0;
 
 	stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
 	printf("Connecting to dashboard...\n");
@@ -132,8 +134,10 @@ int main(int argc, char* argv[]) {
 			socket_write_float(dashboard, target_x);
 			socket_write_float(dashboard, target_y);
 			socket_write_float(dashboard, time_since_valid);
-		}	
-		printf("Target: (%f, %f), valid_since: %f\n", target_x, target_y, time_since_valid);	
+		}
+		if(prev_target_x != target_x || prev_target_y != target_y) {
+			printf("Target: (%f, %f), valid_since: %f\n", target_x, target_y, time_since_valid);
+		}
 		free(rectangles);
 
 		char key = cvWaitKey(1);
@@ -144,13 +148,13 @@ int main(int argc, char* argv[]) {
 	}
 	socket_release(dashboard);
 	cvReleaseMemStorage(&storage);
-	cvReleaseCapture(&capture);	
+	cvReleaseCapture(&capture);
 	return 0;
 }
 
 IplImage* split_channel(IplImage* input, int channel) {
 	IplImage* result = cvCreateImage(cvGetSize(input), 8, 1);
-	
+
 	IplImage* red_channel   = cvCreateImage(cvGetSize(input), 8, 1);
 	IplImage* green_channel = cvCreateImage(cvGetSize(input), 8, 1);
 	IplImage* blue_channel  = cvCreateImage(cvGetSize(input), 8, 1);
@@ -210,8 +214,10 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 
 		cvReleaseImage(&gray_scale);
 	}
+#ifdef DEBUG
 	cvShowImage("threshold", threshold);
-	cvFindContours(threshold, storage, &contours,
+#endif
+cvFindContours(threshold, storage, &contours,
 			sizeof(CvContour), CV_RETR_EXTERNAL,
 			CV_CHAIN_APPROX_SIMPLE, cvPoint(0,0));
 #ifdef DEBUG
