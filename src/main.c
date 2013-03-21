@@ -17,7 +17,22 @@
 #define DEBUG
 
 #define TARGET_ASPECT_RATIO 54.0/21.0
-#define PERROR .10
+#define ACCEPTABLE_ERROR .10
+
+#define THRESHOLD_RED_MIN   125
+#define THRESHOLD_RED_MAX   255
+
+#define THRESHOLD_GREEN_MIN 125
+#define THRESHOLD_GREEN_MAX 255
+
+#define THRESHOLD_BLUE_MIN  125
+#define THRESHOLD_BLUE_MAX  255
+
+#define THRESHOLD_WHITE_MIN 200
+#define THRESHOLD_WHITE_MAX 255
+
+#define THRESHOLD_BLACK_MIN   0
+#define THRESHOLD_BLACK_MAX  45
 
 enum color_channels { CHANNEL_RED, CHANNEL_GREEN, CHANNEL_BLUE };
 enum track_target   { TARGET_RED, TARGET_GREEN, TARGET_BLUE, TARGET_WHITE, TARGET_BLACK };
@@ -26,22 +41,22 @@ IplImage*    split_channel(IplImage* input, int channel);
 rectangle_t* track(IplImage* image, int target, int* num_rects);
 
 int main(int argc, char* argv[]) {
-	IplImage* captured_frame;
-	CvCapture* capture;
+	IplImage*     captured_frame;
+	CvCapture*    capture;
 	CvMemStorage* storage;
+	socket_t*     dashboard;
 	char* stream_url;
-	socket_t* dashboard;
-	int lost_frames;
-	int received_frames;
-	int start_time;
-	int end_time;
-	float prev_target_x = 0;
-	float prev_target_y = 0;
+	float prev_target_x;
+	float prev_target_y;
+	int   lost_frames;
+	int   received_frames;
+	int   start_time;
+	int   end_time;
 
 	stream_url = "rtsp://10.10.14.11:554/axis-media/media.amp?videocodec=h264&streamprofile=Bandwidth";
+	prev_target_x = 0;
+	prev_target_y = 0;	
 	printf("Connecting to dashboard...\n");
-	//dashboard = -1;
-	//10.10.14.42
 	dashboard = socket_open("10.10.14.42", "2000");
 	if(dashboard == NULL) {
 		printf("Unable to connect to dashboard\n");
@@ -49,7 +64,7 @@ int main(int argc, char* argv[]) {
 	}
 	printf("Connected!\n");
 
-	avformat_network_init();
+	//avformat_network_init();
 	capture = cvCaptureFromFile(stream_url);
 	if(!capture) {
 		printf("Unable to capture from URL\n");
@@ -110,7 +125,7 @@ int main(int argc, char* argv[]) {
 			//printf("Bounds [%f, %f, %f, %f]\n", rectangles[i].x, rectangles[i].y, rectangles[i].width, rectangles[i].height);
 			float error = ((rectangles[i].width/rectangles[i].height)-TARGET_ASPECT_RATIO)/TARGET_ASPECT_RATIO;
 			if(error < 0) error = -error;
-			if(error <= PERROR && error < best_error) {
+			if(error <= ACCEPTABLE_ERROR && error < best_error) {
 				//Target is the center of the rectangle
 				target_x = rectangles[i].x+(rectangles[i].width/2);
 				target_y = rectangles[i].y+(rectangles[i].height/2);	
@@ -140,10 +155,12 @@ int main(int argc, char* argv[]) {
 		}
 		free(rectangles);
 
+#ifdef DEBUG
 		char key = cvWaitKey(1);
 		if(key == 'q') {
 			break;
 		}
+#endif
 		cvClearMemStorage(storage);
 	}
 	socket_release(dashboard);
@@ -151,7 +168,11 @@ int main(int argc, char* argv[]) {
 	cvReleaseCapture(&capture);
 	return 0;
 }
-
+/*
+	Takes a colour image and splits it into it's individual channels
+	but also removes what is common between the requested channel
+	and the others.
+*/
 IplImage* split_channel(IplImage* input, int channel) {
 	IplImage* result = cvCreateImage(cvGetSize(input), 8, 1);
 
@@ -188,29 +209,29 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 	CvSeq* contours;
 	if(target == TARGET_BLUE) {
 		IplImage* blue_image = split_channel(image, CHANNEL_BLUE);
-		cvThreshold(blue_image, threshold, 75, 255, CV_THRESH_OTSU);
+		cvThreshold(blue_image, threshold, THRESHOLD_BLUE_MIN, THRESHOLD_BLUE_MAX, CV_THRESH_OTSU);
 
 		cvReleaseImage(&blue_image);
 	} else if(target == TARGET_GREEN) {
 		IplImage* green_image = split_channel(image, CHANNEL_GREEN);
-		cvThreshold(green_image, threshold, 75, 255, CV_THRESH_OTSU);
+		cvThreshold(green_image, threshold, THRESHOLD_GREEN_MIN, THRESHOLD_GREEN_MAX, CV_THRESH_OTSU);
 
 		cvReleaseImage(&green_image);
 	} else if(target == TARGET_RED) {
 		IplImage* red_image = split_channel(image, CHANNEL_RED);
-		cvThreshold(red_image, threshold, 150, 255, CV_THRESH_OTSU);
+		cvThreshold(red_image, threshold, THRESHOLD_RED_MIN, THRESHOLD_RED_MAX, CV_THRESH_OTSU);
 
 		cvReleaseImage(&red_image);
 	} else if(target == TARGET_WHITE) {
 		IplImage* gray_scale = cvCreateImage(cvGetSize(image), 8, 1);
 		cvCvtColor(image, gray_scale, CV_RGB2GRAY);
-		cvThreshold(gray_scale, threshold, 175, 255, CV_THRESH_BINARY);
+		cvThreshold(gray_scale, threshold, THRESHOLD_WHITE_MIN, THRESHOLD_WHITE_MAX, CV_THRESH_BINARY);
 
 		cvReleaseImage(&gray_scale);
 	} else if(target == TARGET_BLACK) {
 		IplImage* gray_scale = cvCreateImage(cvGetSize(image), 8, 1);
 		cvCvtColor(image, gray_scale, CV_RGB2GRAY);
-		cvThreshold(gray_scale, threshold, 0, 55, CV_THRESH_BINARY);
+		cvThreshold(gray_scale, threshold, THRESHOLD_BLACK_MIN, THRESHOLD_BLACK_MAX, CV_THRESH_BINARY);
 
 		cvReleaseImage(&gray_scale);
 	}
@@ -248,7 +269,6 @@ cvFindContours(threshold, storage, &contours,
 #endif
 			//Guess a bounding rectangle and make pretty pictures with it
 			rectangle_t bounds = approximate_bounds(hull_points);
-			//printf("Bounds [%f, %f, %f, %f]\n", bounds.x, bounds.y, bounds.width, bounds.height);
 			boundaries[pos] = bounds;
 			pos++;			
 			if(bounds.width*bounds.height >= MIN_AREA) {
