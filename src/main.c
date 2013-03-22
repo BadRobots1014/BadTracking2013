@@ -76,14 +76,14 @@ int main(int argc, char* argv[]) {
 	start_time        = time(0);
 	end_time          = start_time;
 
-	received_frames   = 0
+	received_frames   = 0;
 	storage           = cvCreateMemStorage(0);
 	//yeah... while(true).. sue me...
 	while(1) {
 		CvSize image_size;
 
-		rectangle_t* rectangles;
-		int num_rects;
+		rectangle_t* targets;
+		int num_targets;
 		float target_x;
 		float target_y;
 		float time_since_valid;
@@ -104,24 +104,24 @@ int main(int argc, char* argv[]) {
 			best_error = 100;
 
 			image_size = cvGetSize(captured_frame);
-			rectangles = track(captured_frame, TARGET_RED, &num_rects);
+			targets    = track(captured_frame, TARGET_RED, &num_targets);
 			int i;
-			for(i = 0; i < num_rects; i++) {
-				if(rectangles[i].width*rectangles[i].height < MIN_AREA) {
+			for(i = 0; i < num_targets; i++) {
+				if(targets[i].width*targets[i].height < MIN_AREA) {
 					continue;
 				}
-				rectangles[i] = normalize_bounds(rectangles[i], image_size);
-				error = (rectangles[i].width/rectangles[i].height)-TARGET_ASPECT_RATIO;
+				targets[i] = normalize_bounds(targets[i], image_size);
+				error = (targets[i].width/targets[i].height)-TARGET_ASPECT_RATIO;
 				error /= TARGET_ASPECT_RATIO;
 				if(error < 0)
 					error = -error;
 				if(error <= ACCEPTABLE_ERROR && error < best_error) {
-					target_x   = rectangles[i].x+(rectangles[i].width/2);
-					target_y   = rectangles[i].y+(rectangles[i].height/2);
+					target_x   = targets[i].x+(targets[i].width/2);
+					target_y   = targets[i].y+(targets[i].height/2);
 					best_error = error;
 				}
 			}
-			free(rectangles);
+			free(targets);
 			if(best_error == 100)
 				time_since_valid = -1;
 		}
