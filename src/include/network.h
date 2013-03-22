@@ -30,8 +30,10 @@ typedef struct {
 } socket_t ;
 
 socket_t* socket_open(char* hostname, char* port_str);
-void      socket_write(socket_t* socket, char* buffer, int length);
-void      socket_write_float(socket_t* socket, float f);
+int       socket_write(socket_t* socket, char* buffer, int length);
+int       socket_write_float(socket_t* socket, float f);
 void      socket_release(socket_t* socket);
 
+//socket_t* socket_bind(char* port_str);
+//socket_t* socket_accept(socket_t* server_socket);
 #endif

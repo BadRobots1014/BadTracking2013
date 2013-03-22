@@ -33,11 +33,11 @@ socket_t* socket_open(char* hostname, char* port_str) {
 	return result;
 }
 
-void socket_write(socket_t* socket, char* buffer, int length) {
+int socket_write(socket_t* socket, char* buffer, int length) {
 	SOCKET int_socket = socket->internal.int_socket;
-	send(int_socket, buffer, length, 0);
+	return send(int_socket, buffer, length, 0);
 }
-void socket_write_float(socket_t* socket, float f) {
+int socket_write_float(socket_t* socket, float f) {
 	//convert to Big-Endian (DataInputStream in java expects it)
 	//<insert stupid assumption here>
 	float result;
@@ -49,7 +49,7 @@ void socket_write_float(socket_t* socket, float f) {
 	result_buffer[2] = buffer[1];
 	result_buffer[3] = buffer[0];
 
-	socket_write(socket, (char*)&result, sizeof(result));
+	return socket_write(socket, (char*)&result, sizeof(result));
 }
 
 #endif
