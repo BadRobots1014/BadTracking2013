@@ -57,9 +57,9 @@ int main(int argc, char* argv[]) {
 
 	printf("Connecting to dashboard...\n");
 	dashboard = socket_open("10.10.14.42", "2000");
-	if(dashboard == NULL) {
-		printf("Unable to connect to dashboard\n");
-		return -1;
+	while(dashboard == NULL) {
+		sleep(2);
+		dashboard = socket_open("10.10.14.42", "2000");
 	}
 	printf("Connected!\n");
 
@@ -70,15 +70,18 @@ int main(int argc, char* argv[]) {
 		printf("Unable to capture from URL\n");
 		return -1;
 	}
-	received_frames   = 0;
+
 	prev_target_x     = 0;
 	prev_target_y     = 0;
 	start_time        = time(0);
 	end_time          = start_time;
+
+	received_frames   = 0
 	storage           = cvCreateMemStorage(0);
 	//yeah... while(true).. sue me...
 	while(1) {
 		CvSize image_size;
+
 		rectangle_t* rectangles;
 		int num_rects;
 		float target_x;
@@ -90,13 +93,13 @@ int main(int argc, char* argv[]) {
 		target_x = 0;
 		target_y = 0;
 		captured_frame = cvQueryFrame(capture);
-		time_since_valid = handle_times(captured_frame, &start_time, &end_time, &received_frames);		
+		time_since_valid = handle_times(captured_frame, &start_time, &end_time, &received_frames);
 
 		if(time_since_valid < 0) {
 			//Re-acquire the image stream
 			cvReleaseCapture(&capture);
 			capture = cvCaptureFromFile(stream_url);
-			continue;		
+			continue;
 		} else {
 			best_error = 100;
 
@@ -110,16 +113,16 @@ int main(int argc, char* argv[]) {
 				rectangles[i] = normalize_bounds(rectangles[i], image_size);
 				error = (rectangles[i].width/rectangles[i].height)-TARGET_ASPECT_RATIO;
 				error /= TARGET_ASPECT_RATIO;
-				if(error < 0) 
+				if(error < 0)
 					error = -error;
 				if(error <= ACCEPTABLE_ERROR && error < best_error) {
 					target_x   = rectangles[i].x+(rectangles[i].width/2);
-					target_y   = rectangles[i].y+(rectangles[i].height/2);	
+					target_y   = rectangles[i].y+(rectangles[i].height/2);
 					best_error = error;
 				}
 			}
 			free(rectangles);
-			if(best_error == 100) 
+			if(best_error == 100)
 				time_since_valid = -1;
 		}
 
@@ -157,7 +160,7 @@ IplImage* split_channel(IplImage* input, int channel) {
 	IplImage* red_channel   = cvCreateImage(cvGetSize(input), 8, 1);
 	IplImage* green_channel = cvCreateImage(cvGetSize(input), 8, 1);
 	IplImage* blue_channel  = cvCreateImage(cvGetSize(input), 8, 1);
-	cvSplit(input, blue_channel, green_channel, red_channel, NULL);	
+	cvSplit(input, blue_channel, green_channel, red_channel, NULL);
 	if(channel == CHANNEL_BLUE) {
 		cvAdd(red_channel, green_channel, green_channel, NULL);
 		cvSub(blue_channel, green_channel, result, NULL);
@@ -240,21 +243,21 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 	for(i = contours; i != 0; i = i->h_next) {
 		CvSeq* hull_points = cvConvexHull2(i, storage, CV_CLOCKWISE, 1);
 		if(hull_points) {
-#ifdef DEBUG			
+#ifdef DEBUG
 			cvDrawContours(image, hull_points,
 				CV_RGB(255,0,0), CV_RGB(255,0,0),
-				1000, CV_FILLED, CV_AA, cvPoint(0,0));			
+				1000, CV_FILLED, CV_AA, cvPoint(0,0));
 #endif
 			//Guess a bounding rectangle and make pretty pictures with it
 			rectangle_t bounds = approximate_bounds(hull_points);
 			boundaries[pos] = bounds;
-			pos++;			
+			pos++;
 			if(bounds.width*bounds.height >= MIN_AREA) {
 #ifdef DEBUG
 				cvRectangle(image, cvPoint(bounds.x, bounds.y),
 					cvPoint(bounds.x+bounds.width, bounds.y+bounds.height),
-					CV_RGB(0,255,0), 3, 8, 0);				
-#endif			
+					CV_RGB(0,255,0), 3, 8, 0);
+#endif
 			}
 		}
 	}
