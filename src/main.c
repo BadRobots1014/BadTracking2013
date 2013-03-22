@@ -39,6 +39,10 @@ enum track_target   { TARGET_RED, TARGET_GREEN, TARGET_BLUE, TARGET_WHITE, TARGE
 
 IplImage*    split_channel(IplImage* input, int channel);
 rectangle_t* track(IplImage* image, int target, int* num_rects);
+/*
+	Updates start_time, end_time, and received_frames as necessary
+	checking whether frame is NULL and updating values accordingly
+*/
 float        handle_times(IplImage* frame, int* start_time, int* end_time, int* received_frames);
 
 int main(int argc, char* argv[]) {
@@ -56,11 +60,10 @@ int main(int argc, char* argv[]) {
 	int end_time;
 
 	printf("Connecting to dashboard...\n");
-	dashboard = socket_open("10.10.14.42", "2000");
-	while(dashboard == NULL) {
-		sleep(2);
+	do {
 		dashboard = socket_open("10.10.14.42", "2000");
-	}
+		sleep(2);
+	} while(!dashboard);
 	printf("Connected!\n");
 
 	//avformat_network_init();
@@ -216,20 +219,9 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 
 		cvReleaseImage(&gray_scale);
 	}
-#ifdef DEBUG
-	cvShowImage("threshold", threshold);
-#endif
 	cvFindContours(threshold, storage, &contours,
 			sizeof(CvContour), CV_RETR_EXTERNAL,
 			CV_CHAIN_APPROX_SIMPLE, cvPoint(0,0));
-#ifdef DEBUG
-	cvShowImage("contours", threshold);
-	if(contours) {
-		cvDrawContours(image, contours,
-			CV_RGB(0,0,255), CV_RGB(0,0,255),
-			100, 3, CV_AA, cvPoint(0,0));
-	}
-#endif
 
 	int num_contours = 0;
 	CvSeq* i;
@@ -243,27 +235,31 @@ rectangle_t* track(IplImage* image, int target, int* num_rects) {
 	for(i = contours; i != 0; i = i->h_next) {
 		CvSeq* hull_points = cvConvexHull2(i, storage, CV_CLOCKWISE, 1);
 		if(hull_points) {
-#ifdef DEBUG
-			cvDrawContours(image, hull_points,
-				CV_RGB(255,0,0), CV_RGB(255,0,0),
-				1000, CV_FILLED, CV_AA, cvPoint(0,0));
-#endif
 			//Guess a bounding rectangle and make pretty pictures with it
 			rectangle_t bounds = approximate_bounds(hull_points);
 			boundaries[pos] = bounds;
 			pos++;
-			if(bounds.width*bounds.height >= MIN_AREA) {
 #ifdef DEBUG
+			cvDrawContours(image, hull_points,
+				CV_RGB(255,0,0), CV_RGB(255,0,0),
+				1000, CV_FILLED, CV_AA, cvPoint(0,0));	
+			if(bounds.width*bounds.height >= MIN_AREA) {
 				cvRectangle(image, cvPoint(bounds.x, bounds.y),
 					cvPoint(bounds.x+bounds.width, bounds.y+bounds.height),
 					CV_RGB(0,255,0), 3, 8, 0);
-#endif
 			}
+#endif
 		}
 	}
 
 #ifdef DEBUG
 	cvShowImage("contours", image);
+	cvShowImage("threshold", threshold);
+	if(contours) {
+		cvDrawContours(image, contours,
+			CV_RGB(0,0,255), CV_RGB(0,0,255),
+			100, 3, CV_AA, cvPoint(0,0));
+	}
 #endif
 
 	cvReleaseImage(&threshold);
