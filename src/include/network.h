@@ -11,6 +11,9 @@ typedef struct {} SOCKET;
 
 #include <unistd.h>
 #include <netdb.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -29,12 +32,16 @@ typedef struct {
 	} internal;
 } socket_t;
 
+socket_t* socket_create(int socket_type);
 socket_t* socket_open(char* hostname, char* port_str);
 int       socket_write(socket_t* socket, char* buffer, int length);
 int       socket_write_float(socket_t* socket, float f);
 //int       socket_is_connected(socket_t* socket);
 void      socket_release(socket_t* socket);
 
-//socket_t* socket_bind(char* port_str);
-//socket_t* socket_accept(socket_t* server_socket);
+int   socket_read(socket_t* socket, char* buffer, int length);
+float socket_read_float(socket_t* socket);
+
+void      socket_bind(socket_t* socket, char* port_str, int backlog);
+socket_t* socket_accept(socket_t* server_socket);
 #endif
