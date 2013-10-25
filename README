@@ -1,54 +1,19 @@
 BadTracking2013
 
 Purpose:
-	To track rectangles during an FRC competition to aid in locating goals
-	or finding anything particularly interesting.
+	To track rectangles during an FRC competition to aid in locating goals or finding anything particularly interesting.
 Limitations: 
-	It can only currently look at the red, green, and blue channels, as well as 
-	white in order to locate objects of interest. The objects it does find are
-	converted into rectangles that contain the detected objects, these rectangles
-	are not oriented so they cannot be used to determine current orientation or 
-	distance to the target. Reading up on OpenCV will definitely be helpful if you
-	wish to improve upon this code.
+	It can only currently look at the red, green, and blue channels, as well as white in order to locate objects of interest. The objects it does find are converted into rectangles that contain the detected objects, these rectangles are not oriented so they cannot be used to determine current orientation or distance to the target. Reading up on OpenCV will definitely be helpful if you wish to improve upon this code.
 Vague Description:
-	This system for vision tracking is split into three pieces: this C program, a Java 
-	SmartDashboard plugin, and code to handle the data on the robot. This C program 
-	talks to an axis camera, and grabs images off of a TCP image stream (suggestion for
-	improvement: find a way to grab images through UDP). It takes these images and chooses
-	a colour channel to look into for shapes, after removing colour values that aren't 
-	within a certain range (thresholding) it locates the shapes in the image. Bounding
-	rectangles are created and then compared to the criteria defined at the top of the main
-	file, the detected rectangle that best matches the given criteria is selected and the
-	coordinates of it's center point are normalized (made to be between -1 & 1) and sent
-	to the SmartDashboard plugin.
-	The SmartDashboard plugin simply sits in the background waiting for a connection request
-	from the C program, when a connection is received it patiently (or impatiently) waits
-	for coordinates and when these coordinates are received they are placed into the network
-	tables as "target_x", "target_y", "time_since". The names of the first two values should
-	be fairly self-explanatory, but the third may be slightly confusing. The third is supposed
-	to be a value that tells you (in seconds) the time since the C program was able to obtain
-	a frame from the camera, if this value is negative then the C program dropped a frame.
+	This system for vision tracking is split into three pieces: this C program, a Java SmartDashboard plugin, and code to handle the data on the robot. This C program talks to an axis camera, and grabs images off of a TCP image stream (suggestion for improvement: find a way to grab images through UDP). It takes these images and chooses a colour channel to look into for shapes, after removing colour values that aren't within a certain range (thresholding) it locates the shapes in the image. Bounding rectangles are created and then compared to the criteria defined at the top of the main file, the detected rectangle that best matches the given criteria is selected and the coordinates of it's center point are normalized (made to be between -1 & 1) and sent to the SmartDashboard plugin. The SmartDashboard plugin simply sits in the background waiting for a connection request from the C program, when a connection is received it patiently (or impatiently) waits for coordinates and when these coordinates are received they are placed into the network tables as "target_x", "target_y", "time_since". The names of the first two values should be fairly self-explanatory, but the third may be slightly confusing. The third is supposed to be a value that tells you (in seconds) the time since the C program was able to obtain a frame from the camera, if this value is negative then the C program dropped a frame.
 Computer Setup:
-	Due to the fact that hindsight is 20/20, and less thought than should have been used was
-	used in the creation of this software, the network setup is a bit backwards. A computer
-	running Ubuntu with gcc and OpenCV should have a copy of this C program, and should have
-	(at some point) run the install-dependencies.sh script. A SmartDashboard plugin (included
-	in the source here) should be running on the computer that's going to be acting as the
-	driver station. Typically it's a good idea to run the SmartDashboard plugin first, though
-	the C program is designed to continually try to connect to the plugin until it is
-	successful.
+	Due to the fact that hindsight is 20/20, and less thought than should have been used was used in the creation of this software, the network setup is a bit backwards. A computer running Ubuntu with gcc and OpenCV should have a copy of this C program, and should have (at some point) run the install-dependencies.sh script. A SmartDashboard plugin (included in the source here) should be running on the computer that's going to be acting as the driver station. Typically it's a good idea to run the SmartDashboard plugin first, though the C program is designed to continually try to connect to the plugin until it is successful.
 
 Potential Improvements:
-	- Change the network setup so the C program acts as a server and the SmartDashboard plugin
-	  connects to it, rather than the other way around
-	- Change the way the shapes are handled so information useful to obtaining orientation
-	  and potentially distance information is available to the robot
-	- What would be lovely is if this all could be written in one language to allow everyone
-	  to make contributions and understand it's inner-workings; however, it is good experience
-	  to mess around in a language that is a bit different than what you're familiar with.
+	- Change the network setup so the C program acts as a server and the SmartDashboard plugin connects to it, rather than the other way around
+	- Change the way the shapes are handled so information useful to obtaining orientation and potentially distance information is available to the robot
+	- What would be lovely is if this all could be written in one language to allow everyone to make contributions and understand it's inner-workings; however, it is good experience to mess around in a language that is a bit different than what you're familiar with.
 
 TODO:
-	- Test this code, make sure it works, and make sure that people can get things set up
-	  if they can't, perhaps changes are required to this documentation
-	- Have some fun, FRC is going to be what you make of it, enjoy your time with them
-	  and see what you can learn.
+	- Test this code, make sure it works, and make sure that people can get things set up if they can't, perhaps changes are required to this documentation
+	- Have some fun, FRC is going to be what you make of it, enjoy your time with them and see what you can learn.
